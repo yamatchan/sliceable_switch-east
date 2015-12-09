@@ -50,6 +50,25 @@ class Slice
     all.clear
   end
 
+  def self.join(merge_slice_name, into)
+    slices = []
+    into.split(",").each do |slice_name|
+      if Slice.find_by(name: slice_name).nil?
+        fail SliceNotFoundError, "Slice #{slice_name} not found"
+      end
+      slices.push(slice_name)
+    end
+    slices.uniq!
+
+    slice = Slice.find_by(name: merge_slice_name)
+    slice = Slice.create(merge_slice_name) if slice.nil?
+
+    slices.each do |slice_name|
+      slice.get_ports.merge!(Slice.find_by!(name: slice_name).get_ports)
+      Slice.destroy(slice_name)
+    end
+  end
+
   attr_reader :name
 
   def initialize(name)
@@ -89,7 +108,7 @@ class Slice
     @ports.keys
   end
 
-  def ports2
+  def get_ports
     @ports
   end
 
@@ -152,16 +171,9 @@ class Slice
     slices.map do |slice_name, ports|
       Slice.create slice_name
       ports.each do |port|
-        Slice.find_by!(name: slice_name).ports2[port] += @ports[port]
+        Slice.find_by!(name: slice_name).get_ports[port] += @ports[port]
         @ports.delete(port)
       end
-    end
-  end
-
-  def join(into)
-    into.split(",").each do |slice_name|
-      @ports.merge!(Slice.find_by!(name: slice_name).ports2)
-      Slice.destroy(slice_name)
     end
   end
 
