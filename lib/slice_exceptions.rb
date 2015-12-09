@@ -16,4 +16,10 @@ class Slice
   class PortAlreadyExistsError < AlreadyExistsError; end
   # MAC address already exists.
   class MacAddressAlreadyExistsError < AlreadyExistsError; end
+
+  # Superclass for validation errors
+  class ValidationError < StandardError; end
+  # Slice mame cannot validate.
+  class SliceNameValidationError < ValidationError; end
+
 end

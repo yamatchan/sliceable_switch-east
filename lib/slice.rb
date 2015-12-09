@@ -17,6 +17,9 @@ class Slice
     if find_by(name: name)
       fail SliceAlreadyExistsError, "Slice #{name} already exists"
     end
+    unless /^[\w\-]+$/ === name
+      fail SliceNameValidationError, "Slice name (#{name}) is validation error"
+    end
     new(name).tap { |slice| all << slice }
   end
 
@@ -127,19 +130,32 @@ class Slice
   end
 
   def split(into)
-    slices = into.split(" ")
-    slices.delete_if {|item| item.strip == ""}
-    slices.each {|item|
-      item.scan(/^([\w0-9-]+):([\w0-9,-:]+)$/) do |slice_name, host_str|
-        hosts = host_str.split(",")
-        Slice.create(slice_name)
-        hosts.each do |port_str|
+    slices = {}
+    into.split(" ").each {|item|
+      next if item.strip == ""
+      item.scan(/^([\w\-]+):([\w\-:,]+)$/) do |slice_name, ports_str|
+        unless Slice.find_by(name: slice_name).nil?
+          fail SliceAlreadyExistsError, "Slice #{slice_name} already exists"
+        end
+
+        slices[slice_name] = []
+        ports_str.split(",").each do |port_str|
           port = Port.new(Port.parse(port_str))
-          Slice.find_by!(name: slice_name).ports2[port] += @ports[port]
-          @ports.delete(port)
+          unless @ports.has_key? port
+            fail PortNotFoundError, "Port #{port.name} not found"
+          end
+          slices[slice_name].push port
         end
       end
     }
+
+    slices.map do |slice_name, ports|
+      Slice.create slice_name
+      ports.each do |port|
+        Slice.find_by!(name: slice_name).ports2[port] += @ports[port]
+        @ports.delete(port)
+      end
+    end
   end
 
   def join(into)
