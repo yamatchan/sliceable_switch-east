@@ -39,12 +39,23 @@ module View
     end
     # rubocop:enable AbcSize
     def generate_graph(red_edges = [])
-      GraphViz.new(:G, use: 'neato', overlap: false, splines: true) do |gviz|
+      GraphViz.new(:G, overlap: false, splines: true) do |gviz|
+        i = 0
+        Slice.all.each do |slice|
+          cluster = gviz.add_graph("cluster"+i.to_s)
+          slice.each do |port, mac_addresses|
+            mac_addresses.each do |each|
+              ip = @mac2ip[each.to_s]
+              cluster.add_nodes(ip) unless ip.nil?
+            end
+          end
+          i += 1
+        end
         @switch_nodes.map do |key, node|
           gviz.add_nodes node, shape: 'box'
         end
         @host_nodes.each do |node|
-          gviz.add_nodes node, shape: 'ellipse'
+#          gviz.add_nodes node, shape: 'ellipse'
         end
         @edges.each do |edge|
           gviz.add_edges edge[0], edge[1], dir: "none" unless red_edges.include?(edge) || red_edges.include?(edge.reverse)
