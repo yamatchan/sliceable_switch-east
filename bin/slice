@@ -149,6 +149,25 @@ module SliceApp
     end
   end
 
+  desc 'split slice'
+  command :split do |c|
+    c.desc 'Slice name'
+    c.flag [:s, :slice]
+    c.desc 'Split data'
+    c.flag [:into]
+    c.desc 'Location to find socket files'
+    c.flag [:S, :socket_dir], default_value: Trema::DEFAULT_SOCKET_DIR
+
+    c.action do |_global_options, options, _args|
+      fail '--slice option is mandatory.' unless options[:slice]
+      fail '--into option is mandatory.' unless options[:into]
+      Trema.trema_process('RoutingSwitch', options[:socket_dir]).
+        controller.slice.
+        find_by!(name: options[:slice]).
+        split(options[:into])
+    end
+  end
+
   on_error do |e|
     fail e
   end

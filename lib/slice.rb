@@ -86,6 +86,10 @@ class Slice
     @ports.keys
   end
 
+  def ports2
+    @ports
+  end
+
   def add_mac_address(mac_address, port_attrs)
     port = Port.new(port_attrs)
     if @ports[port].include? Pio::Mac.new(mac_address)
@@ -120,6 +124,23 @@ class Slice
     @ports.fetch(port)
   rescue KeyError
     raise PortNotFoundError, "Port #{port.name} not found"
+  end
+
+  def split(into)
+    slices = into.split(" ")
+    slices.delete_if {|item| item.strip == ""}
+    slices.each {|item|
+      item.scan(/^([\w0-9-]+):([\w0-9,-:]+)$/) do |slice_name, host_str|
+        hosts = host_str.split(",")
+        Slice.create(slice_name)
+        hosts.each do |port_str|
+          port = Port.new(Port.parse(port_str))
+          Slice.find_by!(name: slice_name).ports2[port] += @ports[port]
+          @ports.delete(port)
+        end
+
+      end
+    }
   end
 
   def member?(host_id)
