@@ -6,6 +6,7 @@ class TopologyController < Trema::Controller
   timer_event :flood_lldp_frames, interval: 1.sec
 
   attr_reader :topology
+  attr_reader :command_line
 
   def start(args)
     @command_line = CommandLine.new(logger)

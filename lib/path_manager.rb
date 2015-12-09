@@ -42,6 +42,11 @@ class PathManager < Trema::Controller
     @graph.add_link mac_address, port
   end
 
+  def add_graphviz(graphviz)
+    @graphviz = graphviz
+  end
+
+
   private
 
   def maybe_create_shortest_path(packet_in)
@@ -50,4 +55,5 @@ class PathManager < Trema::Controller
     return unless shortest_path
     Path.create shortest_path, packet_in
   end
+    
 end

@@ -16,8 +16,8 @@ class CommandLine
   def parse(args)
     program_desc 'Topology discovery controller'
     set_destination_mac_flag
-    define_text_command
     define_graphviz_command
+    define_text_command
     run args
   end
 
@@ -33,7 +33,6 @@ class CommandLine
   end
 
   def define_text_command
-    default_command :text
     desc 'Displays topology information (text mode)'
     command :text do |cmd|
       cmd.action(&method(:create_text_view))
@@ -41,6 +40,7 @@ class CommandLine
   end
 
   def define_graphviz_command
+    default_command :graphviz
     desc 'Displays topology information (Graphviz mode)'
     arg_name 'output_file'
     command :graphviz do |cmd|
