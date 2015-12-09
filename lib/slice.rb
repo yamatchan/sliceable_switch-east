@@ -138,9 +138,15 @@ class Slice
           Slice.find_by!(name: slice_name).ports2[port] += @ports[port]
           @ports.delete(port)
         end
-
       end
     }
+  end
+
+  def join(into)
+    into.split(",").each do |slice_name|
+      @ports.merge!(Slice.find_by!(name: slice_name).ports2)
+      Slice.destroy(slice_name)
+    end
   end
 
   def member?(host_id)
