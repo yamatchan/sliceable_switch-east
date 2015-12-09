@@ -37,6 +37,7 @@ class RoutingSwitch < Trema::Controller
     @path_manager = start_path_manager
     @topology = start_topology([])
     @path_manager.add_graphviz @topology.command_line.view
+    Slice.add_graphviz @topology.command_line.view
     logger.info 'Routing Switch started.'
   end
 

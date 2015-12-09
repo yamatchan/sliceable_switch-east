@@ -46,14 +46,13 @@ class PathManager < Trema::Controller
     @graphviz = graphviz
   end
 
-
   private
 
   def maybe_create_shortest_path(packet_in)
     shortest_path = @graph.dijkstra(packet_in.source_mac,
                                     packet_in.destination_mac)
     return unless shortest_path
+    @graphviz.generate_graph
     Path.create shortest_path, packet_in
   end
-    
 end

@@ -44,15 +44,25 @@ class Slice
     find_by!(name: name)
     Path.find { |each| each.slice == name }.each(&:destroy)
     all.delete_if { |each| each.name == name }
+    Slice.update_graph
   end
 
   def self.destroy_all
     all.clear
   end
 
+  def self.add_graphviz(graphviz)
+    @graphviz = graphviz
+  end
+
+  def self.update_graph
+    @graphviz.generate_graph
+  end
+
   def self.join(merge_slice_name, into)
     slices = []
     into.split(",").each do |slice_name|
+      slice_name.strip!
       if Slice.find_by(name: slice_name).nil?
         fail SliceNotFoundError, "Slice #{slice_name} not found"
       end
@@ -67,6 +77,7 @@ class Slice
       slice.get_ports.merge!(Slice.find_by!(name: slice_name).get_ports)
       Slice.destroy(slice_name)
     end
+    Slice.update_graph
   end
 
   attr_reader :name
@@ -83,6 +94,7 @@ class Slice
       fail PortAlreadyExistsError, "Port #{port.name} already exists"
     end
     @ports[port] = [].freeze
+    Slice.update_graph
   end
 
   def delete_port(port_attrs)
@@ -91,6 +103,7 @@ class Slice
       each.port?(Topology::Port.create(port_attrs))
     end.each(&:destroy)
     @ports.delete Port.new(port_attrs)
+    Slice.update_graph
   end
 
   def find_port(port_attrs)
@@ -119,6 +132,7 @@ class Slice
            "MAC address #{mac_address} already exists")
     end
     @ports[port] += [Pio::Mac.new(mac_address)]
+    Slice.update_graph
   end
 
   def delete_mac_address(mac_address, port_attrs)
@@ -129,6 +143,7 @@ class Slice
       each.endpoints.include? [Pio::Mac.new(mac_address),
                                Topology::Port.create(port_attrs)]
     end.each(&:destroy)
+    Slice.update_graph
   end
 
   def find_mac_address(port_attrs, mac_address)
@@ -175,6 +190,7 @@ class Slice
         @ports.delete(port)
       end
     end
+    Slice.update_graph
   end
 
   def member?(host_id)
