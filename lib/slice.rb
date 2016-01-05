@@ -17,6 +17,9 @@ class Slice
     if find_by(name: name)
       fail SliceAlreadyExistsError, "Slice #{name} already exists"
     end
+    unless /^[\w\-]+$/ === name
+      fail SliceNameValidationError, "Slice name (#{name}) is validation error"
+    end
     new(name).tap { |slice| all << slice }
   end
 
@@ -41,10 +44,40 @@ class Slice
     find_by!(name: name)
     Path.find { |each| each.slice == name }.each(&:destroy)
     all.delete_if { |each| each.name == name }
+    Slice.update_graph
   end
 
   def self.destroy_all
     all.clear
+  end
+
+  def self.add_graphviz(graphviz)
+    @graphviz = graphviz
+  end
+
+  def self.update_graph
+    @graphviz.generate_graph
+  end
+
+  def self.join(merge_slice_name, into)
+    slices = []
+    into.split(",").each do |slice_name|
+      slice_name.strip!
+      if Slice.find_by(name: slice_name).nil?
+        fail SliceNotFoundError, "Slice #{slice_name} not found"
+      end
+      slices.push(slice_name)
+    end
+    slices.uniq!
+
+    slice = Slice.find_by(name: merge_slice_name)
+    slice = Slice.create(merge_slice_name) if slice.nil?
+
+    slices.each do |slice_name|
+      slice.get_ports.merge!(Slice.find_by!(name: slice_name).get_ports)
+      Slice.destroy(slice_name)
+    end
+    Slice.update_graph
   end
 
   attr_reader :name
@@ -61,6 +94,7 @@ class Slice
       fail PortAlreadyExistsError, "Port #{port.name} already exists"
     end
     @ports[port] = [].freeze
+    Slice.update_graph
   end
 
   def delete_port(port_attrs)
@@ -69,6 +103,7 @@ class Slice
       each.port?(Topology::Port.create(port_attrs))
     end.each(&:destroy)
     @ports.delete Port.new(port_attrs)
+    Slice.update_graph
   end
 
   def find_port(port_attrs)
@@ -86,6 +121,10 @@ class Slice
     @ports.keys
   end
 
+  def get_ports
+    @ports
+  end
+
   def add_mac_address(mac_address, port_attrs)
     port = Port.new(port_attrs)
     if @ports[port].include? Pio::Mac.new(mac_address)
@@ -93,6 +132,7 @@ class Slice
            "MAC address #{mac_address} already exists")
     end
     @ports[port] += [Pio::Mac.new(mac_address)]
+    Slice.update_graph
   end
 
   def delete_mac_address(mac_address, port_attrs)
@@ -103,6 +143,7 @@ class Slice
       each.endpoints.include? [Pio::Mac.new(mac_address),
                                Topology::Port.create(port_attrs)]
     end.each(&:destroy)
+    Slice.update_graph
   end
 
   def find_mac_address(port_attrs, mac_address)
@@ -120,6 +161,36 @@ class Slice
     @ports.fetch(port)
   rescue KeyError
     raise PortNotFoundError, "Port #{port.name} not found"
+  end
+
+  def split(into)
+    slices = {}
+    into.split(" ").each {|item|
+      next if item.strip == ""
+      item.scan(/^([\w\-]+):([\w\-:,]+)$/) do |slice_name, ports_str|
+        unless Slice.find_by(name: slice_name).nil?
+          fail SliceAlreadyExistsError, "Slice #{slice_name} already exists"
+        end
+
+        slices[slice_name] = []
+        ports_str.split(",").each do |port_str|
+          port = Port.new(Port.parse(port_str))
+          unless @ports.has_key? port
+            fail PortNotFoundError, "Port #{port.name} not found"
+          end
+          slices[slice_name].push port
+        end
+      end
+    }
+
+    slices.map do |slice_name, ports|
+      Slice.create slice_name
+      ports.each do |port|
+        Slice.find_by!(name: slice_name).get_ports[port] += @ports[port]
+        @ports.delete(port)
+      end
+    end
+    Slice.update_graph
   end
 
   def member?(host_id)

@@ -35,7 +35,9 @@ class RoutingSwitch < Trema::Controller
   def start(args)
     @options = Options.new(args)
     @path_manager = start_path_manager
-    @topology = start_topology
+    @topology = start_topology([])
+    @path_manager.add_graphviz @topology.command_line.view
+    Slice.add_graphviz @topology.command_line.view
     logger.info 'Routing Switch started.'
   end
 
@@ -56,10 +58,10 @@ class RoutingSwitch < Trema::Controller
     (@options.slicing ? SliceableSwitch : PathManager).new.tap(&:start)
   end
 
-  def start_topology
+  def start_topology(args)
     fail unless @path_manager
     TopologyController.new.tap do |topology|
-      topology.start []
+      topology.start args
       topology.add_observer @path_manager
     end
   end
